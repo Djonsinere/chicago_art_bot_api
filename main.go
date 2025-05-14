@@ -1,12 +1,16 @@
 package main
 
 import (
+	apicalls "art_chicago/api_calls"
 	"art_chicago/db"
 	"log"
 	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+// Хранилище состояний пользователей
+var userStates = make(map[int64]string)
 
 func main() {
 	// Получаем токен бота из переменной окружения
@@ -36,19 +40,45 @@ func main() {
 			continue
 		}
 
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 		// Check exist user and create
-
-		id := strconv.FormatInt(update.Message.From.ID, 10)
+		userID := strconv.FormatInt(update.Message.From.ID, 10)
 		username := update.Message.Chat.UserName
-		db.CreateNewUser(&id, &username)
+		go db.CreateNewUser(&userID, &username)
 
-		// Создаем копию полученного сообщения
-		reply := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-		reply.ReplyToMessageID = update.Message.MessageID
+		user_int_id := update.Message.From.ID
+		if state, exists := userStates[user_int_id]; exists {
+			switch state {
+			case "awaiting_search":
+				resp := apicalls.Full_text_search(update.Message.Text, user_int_id)
+				if len(resp) > 4000 {
+					resp = resp[:4000] + "... [ответ сокращен]"
+				}
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, resp)
+				msg.ReplyToMessageID = update.Message.MessageID
 
-		// Отправляем ответ
-		if _, err := bot.Send(reply); err != nil {
-			log.Println("Ошибка при отправке сообщения:", err)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("Ошибка отправки: %v", err)
+				}
+
+				delete(userStates, user_int_id)
+				continue
+			}
 		}
+		// Extract the command from the Message.
+		switch update.Message.Command() {
+		case "help":
+			msg.Text = "Этот бот позволяет искать любые произведения искусства, которые хранятся в Чикагском университете искусств. По любымы багам/вопросам пишите @rayhartt"
+		case "base_search":
+			userStates[user_int_id] = "awaiting_search"
+			msg.Text = "Пожалуйста введите поисковой запрос на английском языке"
+		default:
+			msg.Text = "Такой команды нет"
+		}
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Panic(err)
+		}
+
 	}
 }
