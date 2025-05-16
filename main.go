@@ -1,9 +1,9 @@
 package main
 
 import (
+	key_callback "art_chicago/KeyCallBack"
 	apicalls "art_chicago/api_calls"
 	"art_chicago/db"
-	"fmt"
 	"log"
 	"strconv"
 
@@ -20,6 +20,7 @@ var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 
 // Хранилище состояний пользователей
 var userStates = make(map[int64]string)
+var userReqData = make(map[int64][50]apicalls.ImageData)
 
 func main() {
 	// Получаем токен бота из переменной окружения
@@ -31,12 +32,14 @@ func main() {
 	// Создаем экземпляр бота
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
-		log.Panic(err)
+		log.Printf("Ошибка: %v", err)
 	}
 
 	// Настраиваем канал для получения обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
+
+	bot.Debug = true
 
 	// Инициалиируем базу данных
 	db.Base_init_db()
@@ -45,6 +48,16 @@ func main() {
 
 	// Обрабатываем входящие обновления
 	for update := range updates {
+		if update.CallbackQuery != nil {
+			key_callback.HandleCallback(
+				bot,
+				update.CallbackQuery,
+				update.CallbackQuery.Message.Chat.ID,
+				update.CallbackQuery.From.ID,
+				userReqData[update.CallbackQuery.From.ID],
+			)
+			delete(userReqData, update.CallbackQuery.From.ID)
+		}
 		if update.Message == nil { // Игнорируем всё, кроме сообщений
 			continue
 		}
@@ -60,23 +73,18 @@ func main() {
 			switch state {
 			case "awaiting_search":
 				resp := apicalls.Full_text_search(update.Message.Text, user_int_id) // в resp у нас aray с image_data
-				fmt.Println(resp)
-				// msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
-				// msg.ReplyToMessageID = update.Message.MessageID
+				userReqData[user_int_id] = resp
 
-				//if _, err := bot.Send(msg); err != nil {
-				//	log.Printf("Ошибка отправки: %v", err)
-				//}
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Тут будет ответ")
 				msg.ReplyMarkup = numericKeyboard
 
 				if _, err = bot.Send(msg); err != nil {
-					panic(err)
+					log.Printf("Ошибка: %v", err)
 				}
-
+				delete(userStates, user_int_id)
 				continue
-			}
 
+			}
 		}
 		// Extract the command from the Message.
 		switch update.Message.Command() {
@@ -90,7 +98,7 @@ func main() {
 		}
 
 		if _, err := bot.Send(msg); err != nil {
-			log.Panic(err)
+			log.Printf("Ошибка отправки: %v", err)
 		}
 
 	}
