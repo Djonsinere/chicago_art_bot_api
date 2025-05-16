@@ -3,10 +3,19 @@ package main
 import (
 	apicalls "art_chicago/api_calls"
 	"art_chicago/db"
+	"fmt"
 	"log"
 	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
+
+// Кнопки для передвжения по картинкам
+var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("<", "<"),
+		tgbotapi.NewInlineKeyboardButtonData(">", ">"),
+	),
 )
 
 // Хранилище состояний пользователей
@@ -51,21 +60,23 @@ func main() {
 			switch state {
 			case "awaiting_search":
 				resp := apicalls.Full_text_search(update.Message.Text, user_int_id) // в resp у нас aray с image_data
-
-				// for _, strings := range resp{
-
-				// }
-
+				fmt.Println(resp)
 				// msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
 				// msg.ReplyToMessageID = update.Message.MessageID
 
-				if _, err := bot.Send(msg); err != nil {
-					log.Printf("Ошибка отправки: %v", err)
+				//if _, err := bot.Send(msg); err != nil {
+				//	log.Printf("Ошибка отправки: %v", err)
+				//}
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Тут будет ответ")
+				msg.ReplyMarkup = numericKeyboard
+
+				if _, err = bot.Send(msg); err != nil {
+					panic(err)
 				}
 
-				delete(userStates, user_int_id)
 				continue
 			}
+
 		}
 		// Extract the command from the Message.
 		switch update.Message.Command() {
