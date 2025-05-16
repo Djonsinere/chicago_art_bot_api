@@ -50,12 +50,14 @@ func main() {
 		if state, exists := userStates[user_int_id]; exists {
 			switch state {
 			case "awaiting_search":
-				resp := apicalls.Full_text_search(update.Message.Text, user_int_id)
-				if len(resp) > 4000 {
-					resp = resp[:4000] + "... [ответ сокращен]"
-				}
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, resp)
-				msg.ReplyToMessageID = update.Message.MessageID
+				resp := apicalls.Full_text_search(update.Message.Text, user_int_id) // в resp у нас aray с image_data
+
+				// for _, strings := range resp{
+
+				// }
+
+				// msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
+				// msg.ReplyToMessageID = update.Message.MessageID
 
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("Ошибка отправки: %v", err)
@@ -68,7 +70,7 @@ func main() {
 		// Extract the command from the Message.
 		switch update.Message.Command() {
 		case "help":
-			msg.Text = "Этот бот позволяет искать любые произведения искусства, которые хранятся в Чикагском университете искусств. По любымы багам/вопросам пишите @rayhartt"
+			msg.Text = "Этот бот позволяет искать любые произведения искусства, которые хранятся в Чикагском университете искусств. За один запрос бот может выдать не более 50 результатов. По любымы багам/вопросам пишите @rayhartt"
 		case "base_search":
 			userStates[user_int_id] = "awaiting_search"
 			msg.Text = "Пожалуйста введите поисковой запрос на английском языке"
