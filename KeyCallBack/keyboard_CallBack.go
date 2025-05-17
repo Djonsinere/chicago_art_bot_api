@@ -1,25 +1,41 @@
-package keycallback
+// KeyCallBack/keyboard_callback.go
+package key_callback
 
 import (
-	apicalls "art_chicago/api_calls"
+	"context"
 	"fmt"
 	"log"
+	"os"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	apicalls "art_chicago/api_calls"
+
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
-func HandleCallback(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, chat_id int64, user_id int64, img_data [50]apicalls.ImageData) {
+func HandleCallback(ctx context.Context, b *bot.Bot, update *models.Update, img_data [50]apicalls.ImageData) {
 	for _, data := range img_data {
 		if data.ID == 0 {
 			break
 		}
-		path := fmt.Sprintf("%d/%s.jpg", user_id, data.ImageID)
-		photo := tgbotapi.NewPhoto(chat_id, tgbotapi.FilePath(path))
-		if _, err := bot.Send(photo); err != nil {
-			log.Printf("\nОшибка отправки фото: %v\n", err)
+		path := fmt.Sprintf("%d/%s.jpg", update.CallbackQuery.From.ID, data.ImageID)
+		file, err := os.Open(path)
+		if err != nil {
+			log.Printf("Ошибка открытия файла %s: %v\n", path, err)
+			continue
 		}
-		// Подтверждаем получение callback
-		bot.Request(tgbotapi.NewCallback(callback.ID, ""))
+		defer file.Close()
+		sendPhotoParams := &bot.SendPhotoParams{
+			ChatID: update.CallbackQuery.Message.Message.Chat.ID, //надо где то достать чат айди
+			Photo:  &models.InputFileUpload{Filename: data.ImageID + ".jpg", Data: file},
+		}
 
+		if _, err := b.SendPhoto(ctx, sendPhotoParams); err != nil {
+			log.Printf("Ошибка отправки фото: %v\n", err)
+		}
+
+		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
+		})
 	}
 }

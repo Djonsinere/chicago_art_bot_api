@@ -1,105 +1,103 @@
+// main.go
 package main
 
 import (
 	key_callback "art_chicago/KeyCallBack"
 	apicalls "art_chicago/api_calls"
 	"art_chicago/db"
+	"context"
 	"log"
 	"strconv"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
-// Кнопки для передвжения по картинкам
-var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("<", "<"),
-		tgbotapi.NewInlineKeyboardButtonData(">", ">"),
-	),
+var (
+	numericKeyboard = models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "<", CallbackData: "<"},
+				{Text: ">", CallbackData: ">"},
+			},
+		},
+	}
+	userStates  = make(map[int64]string)
+	userReqData = make(map[int64][50]apicalls.ImageData)
 )
-
-// Хранилище состояний пользователей
-var userStates = make(map[int64]string)
-var userReqData = make(map[int64][50]apicalls.ImageData)
 
 func main() {
-	// Получаем токен бота из переменной окружения
 	botToken := Token
 	if botToken == "" {
 		log.Fatal("Token not set")
 	}
 
-	// Создаем экземпляр бота
-	bot, err := tgbotapi.NewBotAPI(botToken)
-	if err != nil {
-		log.Printf("Ошибка: %v", err)
-	}
-
-	// Настраиваем канал для получения обновлений
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	bot.Debug = true
-
-	// Инициалиируем базу данных
+	ctx := context.Background()
 	db.Base_init_db()
 
-	updates := bot.GetUpdatesChan(u)
+	// Создаем обработчики
 
-	// Обрабатываем входящие обновления
-	for update := range updates {
-		if update.CallbackQuery != nil {
-			key_callback.HandleCallback(
-				bot,
-				update.CallbackQuery,
-				update.CallbackQuery.Message.Chat.ID,
-				update.CallbackQuery.From.ID,
-				userReqData[update.CallbackQuery.From.ID],
-			)
-			delete(userReqData, update.CallbackQuery.From.ID)
-		}
-		if update.Message == nil { // Игнорируем всё, кроме сообщений
-			continue
-		}
+	b, err := bot.New(botToken,
+		bot.WithDefaultHandler(defaultHandler),
+	)
 
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-		// Check exist user and create
-		userID := strconv.FormatInt(update.Message.From.ID, 10)
-		username := update.Message.Chat.UserName
-		go db.CreateNewUser(&userID, &username)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypeExact, helpHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/base_search", bot.MatchTypeExact, baseSearchHandler)
 
-		user_int_id := update.Message.From.ID
-		if state, exists := userStates[user_int_id]; exists {
-			switch state {
-			case "awaiting_search":
-				resp := apicalls.Full_text_search(update.Message.Text, user_int_id) // в resp у нас aray с image_data
-				userReqData[user_int_id] = resp
+	b.RegisterHandler(bot.HandlerTypeMessageText, "", bot.MatchTypePrefix, defaultHandler)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "", bot.MatchTypePrefix, callbackHandler)
 
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Тут будет ответ")
-				msg.ReplyMarkup = numericKeyboard
-
-				if _, err = bot.Send(msg); err != nil {
-					log.Printf("Ошибка: %v", err)
-				}
-				delete(userStates, user_int_id)
-				continue
-
-			}
-		}
-		// Extract the command from the Message.
-		switch update.Message.Command() {
-		case "help":
-			msg.Text = "Этот бот позволяет искать любые произведения искусства, которые хранятся в Чикагском университете искусств. За один запрос бот может выдать не более 50 результатов. По любымы багам/вопросам пишите @rayhartt"
-		case "base_search":
-			userStates[user_int_id] = "awaiting_search"
-			msg.Text = "Пожалуйста введите поисковой запрос на английском языке"
-		default:
-			msg.Text = "Такой команды нет"
-		}
-
-		if _, err := bot.Send(msg); err != nil {
-			log.Printf("Ошибка отправки: %v", err)
-		}
-
+	if err != nil {
+		log.Panic(err)
 	}
+
+	b.Start(ctx)
+}
+
+// Обработчики команд
+func helpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	sendText(b, update.Message.Chat.ID, "Этот бот позволяет искать произведения искусства...")
+}
+
+func baseSearchHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	userStates[update.Message.From.ID] = "awaiting_search"
+	sendText(b, update.Message.Chat.ID, "Пожалуйста введите поисковой запрос на английском языке")
+}
+
+// Основной обработчик
+func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	if update.Message == nil {
+		return
+	}
+
+	userID := strconv.FormatInt(update.Message.From.ID, 10)
+	username := update.Message.From.Username
+	go db.CreateNewUser(&userID, &username)
+
+	if state, exists := userStates[update.Message.From.ID]; exists && state == "awaiting_search" {
+		resp := apicalls.Full_text_search(update.Message.Text, update.Message.From.ID)
+		userReqData[update.Message.From.ID] = resp
+
+		sendMsgParams := &bot.SendMessageParams{
+			ChatID:      update.Message.Chat.ID,
+			Text:        "Тут будет ответ",
+			ReplyMarkup: &numericKeyboard,
+		}
+		b.SendMessage(ctx, sendMsgParams)
+		delete(userStates, update.Message.From.ID)
+	}
+}
+
+// Обработчик callback-запросов
+func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	key_callback.HandleCallback(ctx, b, update, userReqData[update.CallbackQuery.From.ID])
+	delete(userReqData, update.CallbackQuery.From.ID)
+}
+
+// Вспомогательная функция отправки текста
+func sendText(b *bot.Bot, chatID int64, text string) {
+	b.SendMessage(context.Background(), &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   text,
+	})
 }
