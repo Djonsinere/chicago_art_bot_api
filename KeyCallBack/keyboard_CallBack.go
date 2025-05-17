@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	apicalls "art_chicago/api_calls"
 
@@ -25,12 +26,27 @@ func HandleCallback(ctx context.Context, b *bot.Bot, update *models.Update, img_
 			continue
 		}
 		defer file.Close()
-		sendPhotoParams := &bot.SendPhotoParams{
-			ChatID: update.CallbackQuery.Message.Message.Chat.ID, //надо где то достать чат айди
-			Photo:  &models.InputFileUpload{Filename: data.ImageID + ".jpg", Data: file},
+		// sendPhotoParams := &bot.SendPhotoParams{
+		// 	ChatID: update.CallbackQuery.Message.Message.Chat.ID,
+		// 	Photo:  &models.InputFileUpload{Filename: data.ImageID + ".jpg", Data: file},
+		// }
+		media_path := fmt.Sprintf("attach://%s", path)
+		media := &models.InputMediaPhoto{
+			Media:           media_path,
+			Caption:         "Новое фото",
+			ParseMode:       models.ParseModeMarkdown,
+			MediaAttachment: file, // ВАЖНО: сюда кладёшь io.Reader с файлом
 		}
 
-		if _, err := b.SendPhoto(ctx, sendPhotoParams); err != nil {
+		time.Sleep(500 * time.Millisecond)
+		fmt.Println("updating photo")
+		editPhotoParams := &bot.EditMessageMediaParams{
+			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
+			MessageID: update.CallbackQuery.Message.Message.ID,
+			Media:     media,
+		}
+
+		if _, err := b.EditMessageMedia(ctx, editPhotoParams); err != nil {
 			log.Printf("Ошибка отправки фото: %v\n", err)
 		}
 
