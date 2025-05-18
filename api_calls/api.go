@@ -30,6 +30,9 @@ type ImageData struct {
 	ImageID     string `json:"image_id"`
 	CreditLine  string `json:"credit_line"`
 	ArtistTitle string `json:"artist_title"`
+	Dimensions  string `json:"dimensions"` //размеры картины в реальности
+	//publication_history тут длинная история публикации, ее по идее надо бы в отдельную кнопку вынести
+	Сlassification_title string `json:"classification_title"` //классификация, к примеру скульптура
 }
 
 func Full_text_search(text string, chatID int64) [50]ImageData {
