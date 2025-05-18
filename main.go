@@ -43,7 +43,7 @@ func main() {
 	)
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/help", bot.MatchTypeExact, helpHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/base_search", bot.MatchTypeExact, baseSearchHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/search", bot.MatchTypeExact, baseSearchHandler)
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "", bot.MatchTypePrefix, defaultHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "", bot.MatchTypePrefix, callbackHandler)
@@ -57,7 +57,7 @@ func main() {
 
 // Обработчики команд
 func helpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	sendText(b, update.Message.Chat.ID, "Этот бот позволяет искать произведения искусства...")
+	sendText(b, update.Message.Chat.ID, "Этот бот позволяет искать произведения искусства, которые представленны в открытом доступе в Чикагском университете искусства(https://www.artic.edu). Максимальное количество изображений за 1 запрос = 50. Бот использует систему поиска full search определенную для Чикагского университета искусства, поэтому результаты такие какие есть. Если у вас есть какой либо вопрос или вы нашли баг - пишите @rayhartt")
 }
 
 func baseSearchHandler(ctx context.Context, b *bot.Bot, update *models.Update) {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type APIResponse struct {
@@ -30,15 +31,17 @@ type ImageData struct {
 	ImageID     string `json:"image_id"`
 	CreditLine  string `json:"credit_line"`
 	ArtistTitle string `json:"artist_title"`
-	Dimensions  string `json:"dimensions"` //размеры картины в реальности
+	Dimensions  string `json:"dimensions"`
 	//publication_history тут длинная история публикации, ее по идее надо бы в отдельную кнопку вынести
-	Сlassification_title string `json:"classification_title"` //классификация, к примеру скульптура
+	Сlassification_title string `json:"classification_title"`
 	Date_display         string `json:"date_display"`
 }
 
 func Full_text_search(text string, chatID int64) [50]ImageData {
-	path := fmt.Sprintf("https://api.artic.edu/api/v1/artworks/search?q=%s", text)
-	resp, err := http.Get(path)
+
+	payload_data := fmt.Sprintf("{'q': '%s'}", text) //, 'query': {'term': {'is_public_domain': true}}
+	payload_data_reader := strings.NewReader(payload_data)
+	resp, err := http.Post("https://api.artic.edu/api/v1/artworks/search", "Content-Type: application/json", payload_data_reader)
 	if err != nil {
 		log.Fatal(err)
 	}
