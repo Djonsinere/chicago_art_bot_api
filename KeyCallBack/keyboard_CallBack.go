@@ -27,54 +27,52 @@ var (
 	//userNumStates = make(map[int64]int)
 )
 
-func HandleCallback(ctx context.Context, b *bot.Bot, update *models.Update, img_data [50]apicalls.ImageData) {
-	for _, data := range img_data {
-		if data.ID == 0 {
+func HandleCallback(ctx context.Context, b *bot.Bot, update *models.Update, img_data [50]apicalls.ImageData, user_count int) {
+
+	if img_data[user_count].ID == 0 {
+		return
+	}
+	path := fmt.Sprintf("%d/%s.jpg", update.CallbackQuery.From.ID, img_data[user_count].ImageID)
+	file, err := os.Open(path)
+	if err != nil {
+		log.Printf("Ошибка открытия файла %s: %v\n", path, err)
+	}
+	defer file.Close()
+
+	media_path := fmt.Sprintf("attach://%s", path)
+
+	var let_arr [35]string
+	for num, let := range img_data[user_count].Dimensions {
+		if string(let) == "(" {
 			break
 		}
-		path := fmt.Sprintf("%d/%s.jpg", update.CallbackQuery.From.ID, data.ImageID)
-		file, err := os.Open(path)
-		if err != nil {
-			log.Printf("Ошибка открытия файла %s: %v\n", path, err)
-			continue
-		}
-		defer file.Close()
-
-		media_path := fmt.Sprintf("attach://%s", path)
-
-		var let_arr [35]string
-		for num, let := range data.Dimensions {
-			if string(let) == "(" {
-				break
-			}
-			let_arr[num] = string(let)
-		}
-		fixDemension := strings.Join(let_arr[:], "")
-
-		caption_data := fmt.Sprintf("Автор: %s\nОписание: %s\nРазмеры: %s\nКлассификация: %s", data.ArtistTitle, data.CreditLine, fixDemension, data.Сlassification_title) //добавть дату создания
-		fmt.Print(caption_data)
-		media := &models.InputMediaPhoto{
-			Media:           media_path,
-			Caption:         caption_data,
-			ParseMode:       models.ParseModeHTML,
-			MediaAttachment: file,
-		}
-
-		time.Sleep(1000 * time.Millisecond)
-		fmt.Println("updating photo")
-		editPhotoParams := &bot.EditMessageMediaParams{
-			ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
-			MessageID:   update.CallbackQuery.Message.Message.ID,
-			Media:       media,
-			ReplyMarkup: &numericKeyboard,
-		}
-
-		if _, err := b.EditMessageMedia(ctx, editPhotoParams); err != nil {
-			log.Printf("Ошибка отправки фото: %v\n", err)
-		}
-
-		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-			CallbackQueryID: update.CallbackQuery.ID,
-		})
+		let_arr[num] = string(let)
 	}
+	fixDemension := strings.Join(let_arr[:], "")
+
+	caption_data := fmt.Sprintf("Автор: _%s_\nОписание: _%s_\nРазмеры: _%s_\nКлассификация: _%s_\nДата создания: _%s_", img_data[user_count].ArtistTitle, img_data[user_count].CreditLine, fixDemension, img_data[user_count].Сlassification_title, img_data[user_count].Date_display)
+	fmt.Print(caption_data)
+	media := &models.InputMediaPhoto{
+		Media:           media_path,
+		Caption:         caption_data,
+		ParseMode:       models.ParseModeMarkdownV1,
+		MediaAttachment: file,
+	}
+
+	time.Sleep(1000 * time.Millisecond)
+	fmt.Println("updating photo")
+	editPhotoParams := &bot.EditMessageMediaParams{
+		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		Media:       media,
+		ReplyMarkup: &numericKeyboard,
+	}
+
+	if _, err := b.EditMessageMedia(ctx, editPhotoParams); err != nil {
+		log.Printf("Ошибка отправки фото: %v\n", err)
+	}
+
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
 }

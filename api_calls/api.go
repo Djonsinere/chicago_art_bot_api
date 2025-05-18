@@ -33,6 +33,7 @@ type ImageData struct {
 	Dimensions  string `json:"dimensions"` //размеры картины в реальности
 	//publication_history тут длинная история публикации, ее по идее надо бы в отдельную кнопку вынести
 	Сlassification_title string `json:"classification_title"` //классификация, к примеру скульптура
+	Date_display         string `json:"date_display"`
 }
 
 func Full_text_search(text string, chatID int64) [50]ImageData {
@@ -56,6 +57,7 @@ func Full_text_search(text string, chatID int64) [50]ImageData {
 	var data_array [50]ImageData
 
 	for count, artwork := range apiResponse.Data {
+		count += 1
 		path := artwork.APILink
 		resp, err := http.Get(path)
 		if err != nil {
@@ -75,7 +77,7 @@ func Full_text_search(text string, chatID int64) [50]ImageData {
 		data_array[count] = api_response.Data
 
 		Get_image(api_response.Data.ImageID, chatID)
-		count += 1
+
 		if count == 50 {
 			break
 		}

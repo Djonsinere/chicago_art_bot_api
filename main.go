@@ -24,6 +24,7 @@ var (
 	}
 	userStates  = make(map[int64]string)
 	userReqData = make(map[int64][50]apicalls.ImageData)
+	userCounter = make(map[int64]int)
 )
 
 func main() {
@@ -60,6 +61,7 @@ func helpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 }
 
 func baseSearchHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	userCounter[update.Message.From.ID] = 1
 	userStates[update.Message.From.ID] = "awaiting_search"
 	sendText(b, update.Message.Chat.ID, "Пожалуйста введите поисковой запрос на английском языке")
 }
@@ -90,8 +92,22 @@ func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 
 // Обработчик callback-запросов
 func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	key_callback.HandleCallback(ctx, b, update, userReqData[update.CallbackQuery.From.ID])
-	delete(userReqData, update.CallbackQuery.From.ID)
+	press_button := update.CallbackQuery.Data
+	if userCounter[update.CallbackQuery.From.ID] == 0 {
+		userCounter[update.CallbackQuery.From.ID] = 1
+	}
+	switch press_button {
+	case "<":
+		if userCounter[update.CallbackQuery.From.ID] > 1 {
+			userCounter[update.CallbackQuery.From.ID] -= 1
+		}
+	case ">":
+		if userCounter[update.CallbackQuery.From.ID] < 50 {
+			userCounter[update.CallbackQuery.From.ID] += 1
+		}
+	}
+	key_callback.HandleCallback(ctx, b, update, userReqData[update.CallbackQuery.From.ID], userCounter[update.CallbackQuery.From.ID])
+	//delete(userReqData, update.CallbackQuery.From.ID)
 }
 
 // Вспомогательная функция отправки текста
