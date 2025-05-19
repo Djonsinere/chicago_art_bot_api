@@ -6,6 +6,7 @@ import (
 	apicalls "art_chicago/api_calls"
 	"art_chicago/db"
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -17,8 +18,7 @@ var (
 	numericKeyboard = models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "<", CallbackData: "<"},
-				{Text: ">", CallbackData: ">"},
+				{Text: "Показать результаты", CallbackData: "<"},
 			},
 		},
 	}
@@ -79,10 +79,16 @@ func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if state, exists := userStates[update.Message.From.ID]; exists && state == "awaiting_search" {
 		resp := apicalls.Full_text_search(update.Message.Text, update.Message.From.ID)
 		userReqData[update.Message.From.ID] = resp
-
+		counter := 0
+		for _, data := range resp {
+			if data.ID != 0 {
+				counter += 1
+			}
+		}
+		text := fmt.Sprint("По вашему запросу найдено: ", counter, " результатов")
 		sendMsgParams := &bot.SendMessageParams{
 			ChatID:      update.Message.Chat.ID,
-			Text:        "Тут будет ответ",
+			Text:        text,
 			ReplyMarkup: &numericKeyboard,
 		}
 		b.SendMessage(ctx, sendMsgParams)
