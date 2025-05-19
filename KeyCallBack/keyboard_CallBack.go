@@ -32,7 +32,7 @@ func HandleCallback(ctx context.Context, b *bot.Bot, update *models.Update, img_
 	if img_data[user_count].ID == 0 {
 		return
 	}
-	path := fmt.Sprintf("%d/%s.jpg", update.CallbackQuery.From.ID, img_data[user_count].ImageID)
+	path := fmt.Sprintf("users_photos/%d/%s.jpg", update.CallbackQuery.From.ID, img_data[user_count].ImageID)
 	file, err := os.Open(path)
 	if err != nil {
 		log.Printf("Ошибка открытия файла %s: %v\n", path, err)
@@ -50,7 +50,7 @@ func HandleCallback(ctx context.Context, b *bot.Bot, update *models.Update, img_
 	}
 	fixDemension := strings.Join(let_arr[:], "")
 
-	caption_data := fmt.Sprintf("Автор: _%s_\nОписание: _%s_\nРазмеры: _%s_\nКлассификация: _%s_\nДата создания: _%s_", img_data[user_count].ArtistTitle, img_data[user_count].CreditLine, fixDemension, img_data[user_count].Сlassification_title, img_data[user_count].Date_display)
+	caption_data := fmt.Sprintf("Автор: _%s_\nНазвание: _%s_\nОписание: _%s_\nРазмеры: _%s_\nКлассификация: _%s_\nДата создания: _%s_", img_data[user_count].ArtistTitle, img_data[user_count].Title, img_data[user_count].CreditLine, fixDemension, img_data[user_count].Сlassification_title, img_data[user_count].Date_display)
 	fmt.Print(caption_data)
 	media := &models.InputMediaPhoto{
 		Media:           media_path,

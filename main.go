@@ -36,7 +36,7 @@ func main() {
 	ctx := context.Background()
 	db.Base_init_db()
 
-	// Создаем обработчики
+	// обработчики
 
 	b, err := bot.New(botToken,
 		bot.WithDefaultHandler(defaultHandler),

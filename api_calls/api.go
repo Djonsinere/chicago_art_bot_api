@@ -29,6 +29,7 @@ type sec_APIResponse struct {
 type ImageData struct {
 	ID          int    `json:"id"`
 	ImageID     string `json:"image_id"`
+	Title       string `json:"title"`
 	CreditLine  string `json:"credit_line"`
 	ArtistTitle string `json:"artist_title"`
 	Dimensions  string `json:"dimensions"`
@@ -37,11 +38,14 @@ type ImageData struct {
 	Date_display         string `json:"date_display"`
 }
 
-func Full_text_search(text string, chatID int64) [50]ImageData {
+func Full_text_search(text string, user_id int64) [50]ImageData {
+	path := filepath.Join("users_photos", strconv.FormatInt(user_id, 10))
+	log.Print("deletting: ", path)
+	os.RemoveAll(path)
 
-	payload_data := fmt.Sprintf("{'q': '%s'}", text) //, 'query': {'term': {'is_public_domain': true}}
-	payload_data_reader := strings.NewReader(payload_data)
-	resp, err := http.Post("https://api.artic.edu/api/v1/artworks/search", "Content-Type: application/json", payload_data_reader)
+	fixed_text := strings.Replace(text, " ", "%", -1)
+	url_path := fmt.Sprintf("https://api.artic.edu/api/v1/artworks/search?q=%s", fixed_text)
+	resp, err := http.Get(url_path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,10 +80,12 @@ func Full_text_search(text string, chatID int64) [50]ImageData {
 		if err := json.Unmarshal(full_responce, &api_response); err != nil {
 			log.Fatal("JSON parse error:", err)
 		}
+		if api_response.Data.ImageID != "" {
 
-		data_array[count] = api_response.Data
+			data_array[count] = api_response.Data
 
-		Get_image(api_response.Data.ImageID, chatID)
+			Get_image(api_response.Data.ImageID, user_id)
+		}
 
 		if count == 50 {
 			break
@@ -102,7 +108,7 @@ func Get_image(image_id_api string, user_id int64) {
 	}
 	str_user_id := strconv.FormatInt(user_id, 10)
 
-	dirPath := filepath.Join(str_user_id)
+	dirPath := filepath.Join("users_photos", str_user_id)
 	filePath := filepath.Join(dirPath, image_id_api+".jpg") //TODO сохранять в /tmp
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		fmt.Println("ошибка создания директорий: ", err)
