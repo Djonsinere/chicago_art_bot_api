@@ -44,21 +44,21 @@ func Full_text_search(text string, user_id int64) [50]ImageData {
 	os.RemoveAll(path)
 
 	fixed_text := strings.Replace(text, " ", "%", -1)
-	url_path := fmt.Sprintf("https://api.artic.edu/api/v1/artworks/search?q=%s", fixed_text)
+	url_path := fmt.Sprintf("https://api.artic.edu/api/v1/artworks/search?q=%s&limit=35", fixed_text)
 	resp, err := http.Get(url_path)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	defer resp.Body.Close()
 
 	result, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 
 	var apiResponse APIResponse
 	if err := json.Unmarshal(result, &apiResponse); err != nil {
-		log.Fatal("JSON parse error:", err)
+		log.Print("JSON parse error:", err)
 	}
 
 	var data_array [50]ImageData
@@ -68,18 +68,19 @@ func Full_text_search(text string, user_id int64) [50]ImageData {
 		path := artwork.APILink
 		resp, err := http.Get(path)
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 		defer resp.Body.Close()
 		full_responce, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 
 		var api_response sec_APIResponse
 		if err := json.Unmarshal(full_responce, &api_response); err != nil {
-			log.Fatal("JSON parse error:", err)
+			log.Print("JSON parse error:", err)
 		}
+
 		if api_response.Data.ImageID != "" {
 
 			data_array[count] = api_response.Data
@@ -99,12 +100,12 @@ func Get_image(image_id_api string, user_id int64) {
 	path := "https://www.artic.edu/iiif/2/" + image_id_api + "/full/843,/0/default.jpg"
 	resp, err := http.Get(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	str_user_id := strconv.FormatInt(user_id, 10)
 

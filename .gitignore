@@ -1,2 +1,4 @@
 config.go
 chicago_users.db
+users_photos/*
+db/*

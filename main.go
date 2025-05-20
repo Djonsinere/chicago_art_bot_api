@@ -30,7 +30,7 @@ var (
 func main() {
 	botToken := Token
 	if botToken == "" {
-		log.Fatal("Token not set")
+		log.Print("Token not set")
 	}
 
 	ctx := context.Background()
